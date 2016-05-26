@@ -24,16 +24,17 @@ import io.undertow.UndertowOptions;
 import io.undertow.connector.PooledByteBuffer;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
-import io.undertow.util.UrlDecodeException;
 import io.undertow.util.Headers;
 import io.undertow.util.SameThreadExecutor;
 import io.undertow.util.URLUtils;
+import io.undertow.util.UrlDecodeException;
 import org.xnio.ChannelListener;
 import org.xnio.IoUtils;
 import org.xnio.channels.StreamSourceChannel;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Parser definition for form encoded data. This handler takes effect for any request that has a mime type
@@ -46,7 +47,7 @@ public class FormEncodedDataDefinition implements FormParserFactory.ParserDefini
 
     public static final String APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
     private static boolean parseExceptionLogAsDebug = false;
-    private String defaultEncoding = "ISO-8859-1";
+    private String defaultEncoding = StandardCharsets.UTF_8.name(); // default to UTF-8 as per HTML5 spec
     private boolean forceCreation = false; //if the parser should be created even if the correct headers are missing
 
     public FormEncodedDataDefinition() {
