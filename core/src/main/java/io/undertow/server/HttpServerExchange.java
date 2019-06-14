@@ -132,7 +132,8 @@ public final class HttpServerExchange extends AbstractAttachable {
     private Map<String, Deque<String>> pathParameters;
 
     private Map<String, Cookie> requestCookies;
-    private Map<String, Cookie> responseCookies;
+    // map of cookie name -> cookie path -> cookie
+    private Map<String, Map< String, Cookie>> responseCookies;
 
     /**
      * The actual response channel. May be null if it has not been created yet.
@@ -1180,14 +1181,22 @@ public final class HttpServerExchange extends AbstractAttachable {
         if (responseCookies == null) {
             responseCookies = new TreeMap<>(); //hashmap is slow to allocate in JDK7
         }
-        responseCookies.put(cookie.getName(), cookie);
+        final Map<String, Cookie> cookiesByPath;
+        if (responseCookies.containsKey(cookie.getName())) {
+            cookiesByPath = responseCookies.get(cookie.getName());
+        } else {
+            cookiesByPath = new TreeMap<String, Cookie>();
+            responseCookies.put(cookie.getName(), cookiesByPath);
+        }
+        cookiesByPath.put(cookie.getPath() != null? cookie.getPath() : "null", cookie);
+               // /* cookie.getPath() != null? cookie.getPath() + cookie.getName() : */cookie.getName(), cookie);
         return this;
     }
 
     /**
      * @return A mutable map of response cookies
      */
-    public Map<String, Cookie> getResponseCookies() {
+    public Map<String, Map <String, Cookie>> getResponseCookies() {
         if (responseCookies == null) {
             responseCookies = new TreeMap<>();
         }
@@ -1199,7 +1208,7 @@ public final class HttpServerExchange extends AbstractAttachable {
      *
      * @return The response cookies, or null if they have not been set yet
      */
-    Map<String, Cookie> getResponseCookiesInternal() {
+    Map<String, Map<String, Cookie>> getResponseCookiesInternal() {
         return responseCookies;
     }
 

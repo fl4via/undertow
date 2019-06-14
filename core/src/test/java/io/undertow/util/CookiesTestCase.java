@@ -168,6 +168,8 @@ public class CookiesTestCase {
         Assert.assertEquals("foo", cookie.getValue());
     }
 
+    // TODO
+
     @Test
     public void testEqualsInValueAllowed() {
         Map<String, Cookie> cookies = Cookies.parseRequestCookies(1, true, Arrays.asList("CUSTOMER=WILE_E_COYOTE=THE_COYOTE"));

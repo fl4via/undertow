@@ -18,6 +18,9 @@
 
 package io.undertow.attribute;
 
+import java.util.Iterator;
+import java.util.Map;
+
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.Cookie;
 import io.undertow.server.handlers.CookieImpl;
@@ -37,11 +40,23 @@ public class ResponseCookieAttribute implements ExchangeAttribute {
 
     @Override
     public String readAttribute(final HttpServerExchange exchange) {
-        Cookie cookie = exchange.getResponseCookies().get(cookieName);
-        if (cookie == null) {
+        Map<String, Cookie> cookiesByPath = exchange.getResponseCookies().get(cookieName);
+        if (cookiesByPath == null || cookiesByPath.size() == 0) {
             return null;
         }
-        return cookie.getValue();
+        if (cookiesByPath.size() == 1) {
+            return cookiesByPath.values().iterator().next().getValue();
+        } else {
+            final Iterator<Cookie> iterator = cookiesByPath.values().iterator();
+            StringBuilder builder = new StringBuilder();
+            builder.append(iterator.next());
+            while (iterator.hasNext()) {
+                final Cookie cookie = iterator.next();
+                builder.append(";");
+                builder.append(cookie.getValue());
+            }
+            return builder.toString();
+        }
     }
 
     @Override

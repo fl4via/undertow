@@ -12,10 +12,11 @@ public enum SecureCookieCommitListener implements ResponseCommitListener {
 
     @Override
     public void beforeCommit(HttpServerExchange exchange) {
-        Map<String, Cookie> cookies = exchange.getResponseCookiesInternal();
+        Map<String, Map <String, Cookie>> cookies = exchange.getResponseCookiesInternal();
         if (cookies != null) {
-            for (Map.Entry<String, Cookie> cookie : exchange.getResponseCookies().entrySet()) {
-                cookie.getValue().setSecure(true);
+            for (Map.Entry<String, Map<String, Cookie>> cookiesByPath : exchange.getResponseCookies().entrySet()) {
+                for (Map.Entry<String, Cookie> cookie : cookiesByPath.getValue().entrySet())
+                    cookie.getValue().setSecure(true);
             }
         }
     }

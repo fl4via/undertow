@@ -142,8 +142,20 @@ public class SingleSignOnAuthenticationMechanism implements AuthenticationMechan
     }
 
     private void clearSsoCookie(HttpServerExchange exchange) {
-        exchange.getResponseCookies().put(cookieName, new CookieImpl(cookieName).setMaxAge(0).setHttpOnly(httpOnly).setSecure(secure).setDomain(domain).setPath(path));
+        exchange.setResponseCookie(new CookieImpl(cookieName).setMaxAge(0).setHttpOnly(httpOnly).setSecure(secure).setDomain(domain).setPath(path));
     }
+
+   /* private void addOrUpdateResponseCookie(HttpServerExchange exchange, Cookie cookie) {
+        final Map<String, Map<String, Cookie>> responseCookies = exchange.getResponseCookies();
+        final Map<String, Cookie> cookiesByPath;
+        if (responseCookies.containsKey(cookieName)) {
+            cookiesByPath = responseCookies.get(cookieName);
+        } else {
+            cookiesByPath = new TreeMap<String, Cookie>();
+            responseCookies.put(cookieName, cookiesByPath);
+        }
+        cookiesByPath.put(path, new CookieImpl(cookieName).setMaxAge(0).setHttpOnly(httpOnly).setSecure(secure).setDomain(domain).setPath(path));
+    }*/
 
     @Override
     public ChallengeResult sendChallenge(HttpServerExchange exchange, SecurityContext securityContext) {
@@ -164,7 +176,7 @@ public class SingleSignOnAuthenticationMechanism implements AuthenticationMechan
                 try (SingleSignOn sso = singleSignOnManager.createSingleSignOn(account, sc.getMechanismName())) {
                     Session session = getSession(exchange);
                     registerSessionIfRequired(sso, session);
-                    exchange.getResponseCookies().put(cookieName, new CookieImpl(cookieName, sso.getId()).setHttpOnly(httpOnly).setSecure(secure).setDomain(domain).setPath(path));
+                    exchange.setResponseCookie(new CookieImpl(cookieName, sso.getId()).setHttpOnly(httpOnly).setSecure(secure).setDomain(domain).setPath(path));
                 }
             }
             return factory.create();
