@@ -93,4 +93,6 @@ public interface ConnectorStatistics {
      */
     long getMaxActiveRequests();
 
+    ExchangeInfo[] getActiveRequestInfo();
+
 }

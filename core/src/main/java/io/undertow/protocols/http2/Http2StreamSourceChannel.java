@@ -44,8 +44,9 @@ public class Http2StreamSourceChannel extends AbstractHttp2StreamSourceChannel i
      */
     private boolean headersEndStream = false;
     private boolean rst = false;
-    private final HeaderMap headers;
-    private final int streamId;
+    private Http2FrameHeaderParser parser;
+    //private final HeaderMap headers;
+    //private final int streamId;
     private Http2HeadersStreamSinkChannel response;
     private int flowControlWindow;
     private ChannelListener<Http2StreamSourceChannel> completionListener;
@@ -64,12 +65,26 @@ public class Http2StreamSourceChannel extends AbstractHttp2StreamSourceChannel i
 
     private TrailersHandler trailersHandler;
 
-    Http2StreamSourceChannel(Http2Channel framedChannel, PooledByteBuffer data, long frameDataRemaining, HeaderMap headers, int streamId) {
+    /*Http2StreamSourceChannel(Http2Channel framedChannel, PooledByteBuffer data, long frameDataRemaining, HeaderMap headers, int streamId) {
         super(framedChannel, data, frameDataRemaining);
         this.headers = headers;
         this.streamId = streamId;
         this.flowControlWindow = framedChannel.getInitialReceiveWindowSize();
         String contentLengthString = headers.getFirst(Headers.CONTENT_LENGTH);
+        if(contentLengthString != null) {
+            contentLengthRemaining = Long.parseLong(contentLengthString);
+        } else {
+            contentLengthRemaining = -1;
+        }
+    }*/
+
+    Http2StreamSourceChannel(Http2Channel framedChannel, PooledByteBuffer data, long frameDataRemaining, Http2FrameHeaderParser parser) {
+        super(framedChannel, data, frameDataRemaining);
+        //this.headers = parser.getHeaderMap();
+        this.parser = parser;
+        //this.streamId = streamId;
+        this.flowControlWindow = framedChannel.getInitialReceiveWindowSize();
+        String contentLengthString = ((Http2HeadersParser) parser.parser).getHeaderMap().getFirst(Headers.CONTENT_LENGTH);
         if(contentLengthString != null) {
             contentLengthRemaining = Long.parseLong(contentLengthString);
         } else {
@@ -137,7 +152,7 @@ public class Http2StreamSourceChannel extends AbstractHttp2StreamSourceChannel i
         if (response != null) {
             return response;
         }
-        response = new Http2HeadersStreamSinkChannel(getHttp2Channel(), streamId);
+        response = new Http2HeadersStreamSinkChannel(getHttp2Channel(), parser.streamId);
         getHttp2Channel().registerStreamSink(response);
         return response;
     }
@@ -191,7 +206,7 @@ public class Http2StreamSourceChannel extends AbstractHttp2StreamSourceChannel i
         if (flowControlWindow < (initialWindowSize / 2)) {
             int delta = initialWindowSize - flowControlWindow;
             flowControlWindow += delta;
-            http2Channel.sendUpdateWindowSize(streamId, delta);
+            http2Channel.sendUpdateWindowSize(parser.streamId, delta);
         }
     }
 
@@ -204,7 +219,7 @@ public class Http2StreamSourceChannel extends AbstractHttp2StreamSourceChannel i
     }
 
     public HeaderMap getHeaders() {
-        return headers;
+        return ((Http2HeadersParser) parser.parser).getHeaderMap();//headers;
     }
 
     public ChannelListener<Http2StreamSourceChannel> getCompletionListener() {
@@ -233,7 +248,7 @@ public class Http2StreamSourceChannel extends AbstractHttp2StreamSourceChannel i
             completionListener.handleEvent(this);
         }
         if(!ignoreForceClose) {
-            getHttp2Channel().sendRstStream(streamId, Http2Channel.ERROR_CANCEL);
+            getHttp2Channel().sendRstStream(parser.streamId, Http2Channel.ERROR_CANCEL);
         }
         markStreamBroken();
     }
@@ -247,7 +262,7 @@ public class Http2StreamSourceChannel extends AbstractHttp2StreamSourceChannel i
     }
 
     public int getStreamId() {
-        return streamId;
+        return parser.streamId;
     }
 
     boolean isHeadersEndStream() {
@@ -265,7 +280,7 @@ public class Http2StreamSourceChannel extends AbstractHttp2StreamSourceChannel i
     @Override
     public String toString() {
         return "Http2StreamSourceChannel{" +
-                "headers=" + headers +
+                "headers=" + getHeaders() +
                 '}';
     }
 
@@ -278,13 +293,17 @@ public class Http2StreamSourceChannel extends AbstractHttp2StreamSourceChannel i
         if(contentLengthRemaining != -1) {
             contentLengthRemaining -= frameLength;
             if(contentLengthRemaining < 0) {
-                UndertowLogger.REQUEST_IO_LOGGER.debugf("Closing stream %s on %s as data length exceeds content size", streamId, getFramedChannel());
-                getFramedChannel().sendRstStream(streamId, Http2Channel.ERROR_PROTOCOL_ERROR);
+                UndertowLogger.REQUEST_IO_LOGGER.debugf("Closing stream %s on %s as data length exceeds content size", parser.streamId, getFramedChannel());
+                getFramedChannel().sendRstStream(parser.streamId, Http2Channel.ERROR_PROTOCOL_ERROR);
             } else if(last && contentLengthRemaining != 0) {
-                UndertowLogger.REQUEST_IO_LOGGER.debugf("Closing stream %s on %s as data length was less than content size", streamId, getFramedChannel());
-                getFramedChannel().sendRstStream(streamId, Http2Channel.ERROR_PROTOCOL_ERROR);
+                UndertowLogger.REQUEST_IO_LOGGER.debugf("Closing stream %s on %s as data length was less than content size", parser.streamId, getFramedChannel());
+                getFramedChannel().sendRstStream(parser.streamId, Http2Channel.ERROR_PROTOCOL_ERROR);
             }
         }
+    }
+
+    public int getReceivedLength() {
+        return this.parser.getActualLength();
     }
 
     public interface TrailersHandler {

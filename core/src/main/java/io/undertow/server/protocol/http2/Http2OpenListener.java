@@ -104,7 +104,7 @@ public final class Http2OpenListener implements ChannelListener<StreamConnection
         PooledByteBuffer buf = pool.allocate();
         this.bufferSize = buf.getBuffer().remaining();
         buf.close();
-        connectorStatistics = new ConnectorStatisticsImpl();
+        connectorStatistics = new ConnectorStatisticsImpl(undertowOptions.get(UndertowOptions.ENABLE_ACTIVE_REQUEST_STATISTICS, false));
         statisticsEnabled = undertowOptions.get(UndertowOptions.ENABLE_STATISTICS, false);
         this.protocol = protocol;
     }

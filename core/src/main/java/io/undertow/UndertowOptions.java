@@ -212,6 +212,8 @@ public class UndertowOptions {
      */
     public static final Option<Boolean> ENABLE_STATISTICS = Option.simple(UndertowOptions.class, "ENABLE_STATISTICS", Boolean.class);
 
+    public static final Option<Boolean> ENABLE_ACTIVE_REQUEST_STATISTICS = Option.simple(UndertowOptions.class, "ENABLE_ACTIVE_REQUEST_STATISTICS", Boolean.class);
+
 
     /**
      * If connector level statistics should be enabled. This has a slight performance impact, but allows statistics such

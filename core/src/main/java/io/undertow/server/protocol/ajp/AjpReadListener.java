@@ -236,7 +236,7 @@ final class AjpReadListener implements ChannelListener<StreamSourceChannel> {
                 }
                 connection.setCurrentExchange(httpServerExchange);
                 if(connectorStatistics != null) {
-                    connectorStatistics.setup(httpServerExchange);
+                    connectorStatistics.setup(httpServerExchange, read);
                 }
                 if(!Connectors.areRequestHeadersValid(httpServerExchange.getRequestHeaders())) {
                     oldState.badRequest = true;

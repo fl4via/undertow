@@ -125,4 +125,18 @@ public class AggregateConnectorStatistics implements ConnectorStatistics {
         }
         return count;
     }
+
+    @Override public ExchangeInfo[] getActiveRequestInfo() {
+        final ExchangeInfo[][] exchangeInfos = new ExchangeInfo[connectorStatistics.length][];
+        int total = 0;
+        for (int i = 0; i < connectorStatistics.length; i++) {
+            exchangeInfos[i] = connectorStatistics[i].getActiveRequestInfo();
+            total += exchangeInfos.length;
+        }
+        final ExchangeInfo[] result = new ExchangeInfo[total];
+        for (ExchangeInfo[] exchangeInfo : exchangeInfos)
+            for (ExchangeInfo info : exchangeInfo)
+                result[--total] = info;
+        return result;
+    }
 }

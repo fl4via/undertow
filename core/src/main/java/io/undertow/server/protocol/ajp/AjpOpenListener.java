@@ -97,7 +97,7 @@ public class AjpOpenListener implements OpenListener {
         this.bufferSize = buf.getBuffer().remaining();
         buf.close();
         parser = new AjpRequestParser(undertowOptions.get(URL_CHARSET, StandardCharsets.UTF_8.name()), undertowOptions.get(DECODE_URL, true), undertowOptions.get(UndertowOptions.MAX_PARAMETERS, UndertowOptions.DEFAULT_MAX_PARAMETERS), undertowOptions.get(UndertowOptions.MAX_HEADERS, UndertowOptions.DEFAULT_MAX_HEADERS), undertowOptions.get(UndertowOptions.ALLOW_ENCODED_SLASH, false), undertowOptions.get(UndertowOptions.ALLOW_UNESCAPED_CHARACTERS_IN_URL, false));
-        connectorStatistics = new ConnectorStatisticsImpl();
+        connectorStatistics = new ConnectorStatisticsImpl(undertowOptions.get(UndertowOptions.ENABLE_ACTIVE_REQUEST_STATISTICS, false));
         statisticsEnabled = undertowOptions.get(UndertowOptions.ENABLE_CONNECTOR_STATISTICS, false);
     }
 

@@ -91,7 +91,7 @@ public final class HttpOpenListener implements ChannelListener<StreamConnection>
         this.bufferSize = buf.getBuffer().remaining();
         buf.close();
         parser = HttpRequestParser.instance(undertowOptions);
-        connectorStatistics = new ConnectorStatisticsImpl();
+        connectorStatistics = new ConnectorStatisticsImpl(undertowOptions.get(UndertowOptions.ENABLE_ACTIVE_REQUEST_STATISTICS, false));
         statisticsEnabled = undertowOptions.get(UndertowOptions.ENABLE_CONNECTOR_STATISTICS, false);
     }
 

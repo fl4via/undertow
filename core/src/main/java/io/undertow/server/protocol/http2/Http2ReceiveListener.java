@@ -191,8 +191,9 @@ public class Http2ReceiveListener implements ChannelListener<Http2Channel> {
                 }
             });
         }
+
         if(connectorStatistics != null) {
-            connectorStatistics.setup(exchange);
+            connectorStatistics.setup(exchange, dataChannel.getReceivedLength());
         }
 
         try {

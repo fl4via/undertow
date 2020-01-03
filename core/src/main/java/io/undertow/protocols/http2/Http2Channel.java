@@ -412,9 +412,7 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
                         return null;
                     }
                 }
-                Http2HeadersParser parser = (Http2HeadersParser) frameParser.parser;
-
-                channel = new Http2StreamSourceChannel(this, frameData, frameHeaderData.getFrameLength(), parser.getHeaderMap(), frameParser.streamId);
+                channel = new Http2StreamSourceChannel(this, frameData, frameHeaderData.getFrameLength(), frameParser);
                 lastGoodStreamId = Math.max(lastGoodStreamId, frameParser.streamId);
 
                 StreamHolder holder = currentStreams.get(frameParser.streamId);
@@ -424,6 +422,7 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
                 } else {
                     holder.sourceChannel = (Http2StreamSourceChannel) channel;
                 }
+                Http2HeadersParser parser = (Http2HeadersParser) frameParser.parser;
                 if (parser.isHeadersEndStream() && Bits.allAreSet(frameParser.flags, HEADERS_FLAG_END_HEADERS)) {
                     channel.lastFrame();
                     holder.sourceChannel = null;

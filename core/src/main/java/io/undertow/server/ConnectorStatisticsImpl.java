@@ -21,6 +21,8 @@ package io.undertow.server;
 import io.undertow.conduits.ByteActivityCallback;
 import io.undertow.util.StatusCodes;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
@@ -50,6 +52,8 @@ public class ConnectorStatisticsImpl implements ConnectorStatistics {
     private volatile long activeRequests;
     private volatile long maxActiveRequests;
 
+    private final Map<HttpServerExchange, ExchangeInfoImpl> activeRequestMap;
+
     private final ExchangeCompletionListener completionListener = new ExchangeCompletionListener() {
         @Override
         public void exchangeEvent(HttpServerExchange exchange, NextListener nextListener) {
@@ -58,10 +62,13 @@ public class ConnectorStatisticsImpl implements ConnectorStatistics {
                 if (exchange.getStatusCode() == StatusCodes.INTERNAL_SERVER_ERROR) {
                     errorCountUpdater.incrementAndGet(ConnectorStatisticsImpl.this);
                 }
+                final ExchangeInfoImpl exchangeInfo = activeRequestMap == null ? null : activeRequestMap.remove(exchange);
                 long start = exchange.getRequestStartTime();
                 if (start > 0) {
                     long elapsed = System.nanoTime() - start;
                     processingTimeUpdater.addAndGet(ConnectorStatisticsImpl.this, elapsed);
+                    if (exchangeInfo != null)
+                        exchangeInfo.setProcessingTime(elapsed);
                     long oldMax;
                     do {
                         oldMax = maxProcessingTimeUpdater.get(ConnectorStatisticsImpl.this);
@@ -79,6 +86,15 @@ public class ConnectorStatisticsImpl implements ConnectorStatistics {
 
     private final ByteActivityCallback bytesSentAccumulator = new BytesSentAccumulator();
     private final ByteActivityCallback bytesReceivedAccumulator = new BytesReceivedAccumulator();
+
+    @Deprecated
+    public ConnectorStatisticsImpl() {
+        this(false);
+    }
+
+    public ConnectorStatisticsImpl(boolean enableActiveRequestStatistics) {
+        activeRequestMap = enableActiveRequestStatistics ? null : new ConcurrentHashMap<>();
+    }
 
     @Override
     public long getRequestCount() {
@@ -139,7 +155,7 @@ public class ConnectorStatisticsImpl implements ConnectorStatistics {
         bytesReceivedUpdater.addAndGet(this, bytes);
     }
 
-    public void setup(HttpServerExchange exchange) {
+    public void setup(HttpServerExchange exchange, int bytesReceived) {
         requestCountUpdater.incrementAndGet(this);
         long current = activeRequestsUpdater.incrementAndGet(this);
         long maxActiveRequests;
@@ -149,6 +165,8 @@ public class ConnectorStatisticsImpl implements ConnectorStatistics {
                 break;
             }
         } while (!maxActiveRequestsUpdater.compareAndSet(this, maxActiveRequests, current));
+        if (activeRequestMap != null)
+            activeRequestMap.put(exchange, new ExchangeInfoImpl(exchange, bytesReceived));
         exchange.addExchangeCompleteListener(completionListener);
     }
 
@@ -207,5 +225,10 @@ public class ConnectorStatisticsImpl implements ConnectorStatistics {
     @Override
     public long getMaxActiveRequests() {
         return maxActiveRequests;
+    }
+
+    @Override
+    public ExchangeInfo[] getActiveRequestInfo() {
+        return activeRequestMap != null ? activeRequestMap.values().toArray(new ExchangeInfo[0]) : null;
     }
 }

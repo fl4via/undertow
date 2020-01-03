@@ -226,7 +226,7 @@ final class HttpReadListener implements ChannelListener<ConduitStreamSourceChann
             HttpTransferEncoding.setupRequest(httpServerExchange);
             connection.setCurrentExchange(httpServerExchange);
             if(connectorStatistics != null) {
-                connectorStatistics.setup(httpServerExchange);
+                connectorStatistics.setup(httpServerExchange, read);
             }
             if(connection.getSslSession() != null) {
                 //TODO: figure out a better solution for this
