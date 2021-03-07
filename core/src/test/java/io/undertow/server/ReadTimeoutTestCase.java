@@ -27,18 +27,16 @@ import java.util.concurrent.TimeUnit;
 
 import io.undertow.testutils.DefaultServer;
 import io.undertow.testutils.HttpOneOnly;
+import io.undertow.testutils.TestHttpClient;
 import io.undertow.util.Headers;
 import io.undertow.util.StringWriteChannelListener;
-import io.undertow.testutils.TestHttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.AbstractHttpEntity;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.xnio.ChannelExceptionHandler;
-import org.xnio.ChannelListener;
 import org.xnio.ChannelListeners;
+import org.xnio.OptionMap;
 import org.xnio.Options;
 import org.xnio.channels.ReadTimeoutException;
 import org.xnio.channels.StreamSinkChannel;
@@ -49,51 +47,46 @@ import org.xnio.channels.StreamSourceChannel;
  * Tests read timeout with a slow request
  *
  * @author Stuart Douglas
+ * @author Flavia Rainone
  */
 @RunWith(DefaultServer.class)
 @HttpOneOnly
-@Ignore
 public class ReadTimeoutTestCase {
 
     private volatile Exception exception;
-    private static final CountDownLatch errorLatch = new CountDownLatch(1);
+
+    @DefaultServer.BeforeServerStarts
+    public static void beforeClass() {
+        DefaultServer.setServerOptions(OptionMap.create(Options.READ_TIMEOUT, 10));
+    }
+
+    @DefaultServer.AfterServerStops
+    public static void afterClass() {
+        DefaultServer.setServerOptions(OptionMap.EMPTY);
+    }
 
     @Test
-    public void testReadTimeout() throws IOException, InterruptedException {
-        DefaultServer.setRootHandler(new HttpHandler() {
-            @Override
-            public void handleRequest(final HttpServerExchange exchange) throws Exception {
+    public void testReadTimeout() throws InterruptedException {
+        final CountDownLatch errorLatch = new CountDownLatch(1);
+        DefaultServer.setRootHandler((final HttpServerExchange exchange) -> {
                 final StreamSinkChannel response = exchange.getResponseChannel();
                 final StreamSourceChannel request = exchange.getRequestChannel();
-                try {
-                    request.setOption(Options.READ_TIMEOUT, 100);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
 
-                request.getReadSetter().set(ChannelListeners.drainListener(Long.MAX_VALUE, new ChannelListener<Channel>() {
-                            @Override
-                            public void handleEvent(final Channel channel) {
+                request.getReadSetter().set(ChannelListeners.drainListener(Long.MAX_VALUE, (final Channel channel) -> {
                                 new StringWriteChannelListener("COMPLETED") {
                                     @Override
                                     protected void writeDone(final StreamSinkChannel channel) {
                                         exchange.endExchange();
                                     }
                                 }.setup(response);
-                            }
-                        }, new ChannelExceptionHandler<StreamSourceChannel>() {
-                            @Override
-                            public void handleException(final StreamSourceChannel channel, final IOException e) {
+                        }, (final StreamSourceChannel channel, final IOException e) -> {
                                 exchange.endExchange();
                                 exception = e;
                                 errorLatch.countDown();
-                            }
                         }
                 ));
                 request.wakeupReads();
-
-            }
-        });
+            });
 
         final TestHttpClient client = new TestHttpClient();
         try {
@@ -101,7 +94,7 @@ public class ReadTimeoutTestCase {
             post.setEntity(new AbstractHttpEntity() {
 
                 @Override
-                public InputStream getContent() throws IOException, IllegalStateException {
+                public InputStream getContent() throws IllegalStateException {
                     return null;
                 }
 
@@ -137,7 +130,7 @@ public class ReadTimeoutTestCase {
             try {
                 client.execute(post);
             } catch (IOException e) {
-
+                //ignore
             }
             if (errorLatch.await(5, TimeUnit.SECONDS)) {
                 Assert.assertEquals(ReadTimeoutException.class, exception.getClass());
