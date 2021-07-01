@@ -618,4 +618,7 @@ public interface UndertowMessages {
 
     @Message(id = 198, value = "Blocking write timed out after %s nanoseconds.")
     WriteTimeoutException blockingWriteTimedOut(long timeoutNanoseconds);
+
+    @Message(id = 199, value = "Out of flow control window: no WINDOW_UPDATE received from peer within %s miliseconds")
+    IOException noWindowUpdate(long timeoutMiliseconds);
 }
