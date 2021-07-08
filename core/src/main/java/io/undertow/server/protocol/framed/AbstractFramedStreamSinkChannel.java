@@ -350,7 +350,7 @@ public abstract class AbstractFramedStreamSinkChannel<C extends AbstractFramedCh
             return true;
         }
         if (broken) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
 
         if (readyForFlush) {
@@ -358,6 +358,7 @@ public abstract class AbstractFramedStreamSinkChannel<C extends AbstractFramedCh
         }
         synchronized (lock) {
             if (fullyFlushed) {
+                //new Exception("AT FLUSH() MARKING AS CLOSED: " + this).printStackTrace();
                 state |= STATE_CLOSED;
                 return true;
             }
@@ -429,7 +430,7 @@ public abstract class AbstractFramedStreamSinkChannel<C extends AbstractFramedCh
      */
     public boolean send(PooledByteBuffer pooled) throws IOException {
         if(isWritesShutdown()) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         boolean result = sendInternal(pooled);
         if(result) {
@@ -450,7 +451,8 @@ public abstract class AbstractFramedStreamSinkChannel<C extends AbstractFramedCh
     protected boolean safeToSend() throws IOException {
         int state = this.state;
         if (anyAreSet(state, STATE_CLOSED) || broken) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            //System.out.println(this + " IS BROKEN: " + broken);
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         if (readyForFlush) {
             return false; //we can't do anything, we are waiting for a flush
@@ -543,6 +545,7 @@ public abstract class AbstractFramedStreamSinkChannel<C extends AbstractFramedCh
                 if(fullyFlushed || anyAreSet(state, STATE_CLOSED)) {
                     return;
                 }
+                //new Exception("AT CLOSE() MARKING CLOSED: " + this).printStackTrace();
                 state |= STATE_CLOSED;
                 if (writeBuffer != null) {
                     writeBuffer.close();

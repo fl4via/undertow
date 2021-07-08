@@ -101,6 +101,7 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
     public static final int ERROR_CONNECT_ERROR = 0x0a;
     public static final int ERROR_ENHANCE_YOUR_CALM = 0x0b;
     public static final int ERROR_INADEQUATE_SECURITY = 0x0c;
+    public static final int ERROR_HTTP_1_1_REQUIRED = 0x0d;
 
     static final int DATA_FLAG_END_STREAM = 0x1;
     static final int DATA_FLAG_END_SEGMENT = 0x2;
@@ -461,6 +462,7 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
                     throw new ConnectionErrorException(Http2Channel.ERROR_PROTOCOL_ERROR, UndertowMessages.MESSAGES.streamIdMustNotBeZeroForFrameType(FRAME_TYPE_RST_STREAM));
                 }
                 channel = new Http2RstStreamStreamSourceChannel(this, frameData, parser.getErrorCode(), frameParser.streamId);
+                this.
                 handleRstStream(frameParser.streamId);
                 if(isIdle(frameParser.streamId)) {
                     sendGoAway(ERROR_PROTOCOL_ERROR);
@@ -885,7 +887,7 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
             throw UndertowMessages.MESSAGES.headersStreamCanOnlyBeCreatedByClient();
         }
         if (!isOpen()) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         sendConcurrentStreamsAtomicUpdater.incrementAndGet(this);
         if(sendMaxConcurrentStreams > 0 && sendConcurrentStreams > sendMaxConcurrentStreams) {
@@ -912,7 +914,7 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
             throw UndertowMessages.MESSAGES.pushPromiseCanOnlyBeCreatedByServer();
         }
         if (!isOpen()) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         if (!isIdle(pushedStreamId)) {
             UndertowLogger.REQUEST_IO_LOGGER.debugf("Non idle streamId %d received from the server as a pushed stream.", pushedStreamId);
@@ -958,7 +960,7 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
 
     public synchronized Http2HeadersStreamSinkChannel sendPushPromise(int associatedStreamId, HeaderMap requestHeaders, HeaderMap responseHeaders) throws IOException {
         if (!isOpen()) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         if (isClient()) {
             throw UndertowMessages.MESSAGES.pushPromiseCanOnlyBeCreatedByServer();
@@ -1115,6 +1117,7 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
         if(UndertowLogger.REQUEST_IO_LOGGER.isDebugEnabled()) {
             UndertowLogger.REQUEST_IO_LOGGER.debugf(new ClosedChannelException(), "Sending rststream on channel %s stream %s", this, streamId);
         }
+        //channel.awaitWritable
         Http2RstStreamSinkChannel channel = new Http2RstStreamSinkChannel(this, streamId, statusCode);
         flushChannelIgnoreFailure(channel);
     }

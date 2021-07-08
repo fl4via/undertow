@@ -105,7 +105,7 @@ public abstract class DetachableStreamSourceChannel implements StreamSourceChann
     public <T> T setOption(final Option<T> option, final T value) throws IllegalArgumentException, IOException {
 
         if (isFinished()) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         return delegate.setOption(option, value);
     }
@@ -169,7 +169,7 @@ public abstract class DetachableStreamSourceChannel implements StreamSourceChann
 
     public void awaitReadable(final long time, final TimeUnit timeUnit) throws IOException {
         if (isFinished()) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         delegate.awaitReadable(time, timeUnit);
     }

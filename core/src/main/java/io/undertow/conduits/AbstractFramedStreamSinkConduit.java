@@ -95,7 +95,7 @@ public class AbstractFramedStreamSinkConduit extends AbstractStreamSinkConduit<S
     @Override
     public int write(ByteBuffer src) throws IOException {
         if (anyAreSet(state, FLAG_WRITES_TERMINATED)) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         return (int) doWrite(new ByteBuffer[]{src}, 0, 1);
     }
@@ -103,7 +103,7 @@ public class AbstractFramedStreamSinkConduit extends AbstractStreamSinkConduit<S
     @Override
     public long write(ByteBuffer[] srcs, int offs, int len) throws IOException {
         if (anyAreSet(state, FLAG_WRITES_TERMINATED)) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         return doWrite(srcs, offs, len);
     }
@@ -223,7 +223,7 @@ public class AbstractFramedStreamSinkConduit extends AbstractStreamSinkConduit<S
         for (Frame frame : frameQueue) {
             FrameCallBack cb = frame.callback;
             if (cb != null) {
-                cb.failed(UndertowMessages.MESSAGES.channelIsClosed());
+                cb.failed(UndertowMessages.MESSAGES.channelIsClosed(this));
             }
         }
     }

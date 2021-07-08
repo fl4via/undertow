@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
+import java.nio.channels.ClosedChannelException;
 
 import io.undertow.UndertowMessages;
 import io.undertow.connector.PooledByteBuffer;
@@ -70,6 +71,34 @@ public abstract class Http2StreamSinkChannel extends AbstractHttp2StreamSinkChan
     }
 
     @Override
+    public long write(ByteBuffer[] srcs, int offset, int length) throws IOException {
+        try {
+            return super.write(srcs, offset, length);
+        } catch (ClosedChannelException e) {
+            if (reset) {
+                // ignore, we don't want closed channel exceptions being printed in warnings without need
+                return 0;
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public int write(ByteBuffer src) throws IOException {
+        try {
+            return super.write(src);
+        } catch (ClosedChannelException e) {
+            if (reset) {
+                // ignore, we don't want closed channel exceptions being printed in warnings without need
+                return 0;
+            }
+            System.out.println(">>>>>>>> not reset " + this);
+            throw e;
+        }
+    }
+
+
+        @Override
     protected void channelForciblyClosed() throws IOException {
         getChannel().removeStreamSink(getStreamId());
         if (reset) {
@@ -209,7 +238,7 @@ public abstract class Http2StreamSinkChannel extends AbstractHttp2StreamSinkChan
         long initialTime = System.currentTimeMillis();
         super.awaitWritable(time, timeUnit);
         synchronized (flowControlLock) {
-            if (isReadyForFlush() && flowControlWindow <= 0 && flowControlWindow == this.flowControlWindow) {
+            if (isReadyForFlush() && flowControlWindow <= 0 && flowControlWindow == this.flowControlWindow && !reset) {
                 long remainingTimeout;
                 long timeoutInMillis = timeUnit.toMillis(time);
                 while ((remainingTimeout = timeoutInMillis - (System.currentTimeMillis() - initialTime)) > 0) {

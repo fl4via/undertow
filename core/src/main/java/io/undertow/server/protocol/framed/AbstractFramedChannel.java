@@ -731,7 +731,7 @@ public abstract class AbstractFramedChannel<C extends AbstractFramedChannel<C, R
         assert !newFrames.contains(channel);
         if (isWritesBroken() || !this.channel.getSinkChannel().isOpen() || channel.isBroken() || !channel.isOpen()) {
             IoUtils.safeClose(channel);
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         newFrames.add(channel);
 

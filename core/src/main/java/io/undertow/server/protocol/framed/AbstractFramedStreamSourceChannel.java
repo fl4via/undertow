@@ -556,7 +556,7 @@ public abstract class AbstractFramedStreamSourceChannel<C extends AbstractFramed
 
     private void beforeRead() throws IOException {
         if (anyAreSet(state, STATE_STREAM_BROKEN)) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         if (data == null) {
             synchronized (lock) {

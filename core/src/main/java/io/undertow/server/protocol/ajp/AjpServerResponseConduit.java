@@ -474,7 +474,7 @@ final class AjpServerResponseConduit extends AbstractFramedStreamSinkConduit {
         //first attempt to just write out the buffer
         //if there are other frames queued they will be written out first
         if(isWriteShutdown()) {
-            throw UndertowMessages.MESSAGES.channelIsClosed();
+            throw UndertowMessages.MESSAGES.channelIsClosed(this);
         }
         super.write(buffer);
         if (buffer.hasRemaining()) {

@@ -34,6 +34,7 @@ import io.undertow.protocols.http2.AbstractHttp2StreamSourceChannel;
 import io.undertow.protocols.http2.Http2Channel;
 import io.undertow.protocols.http2.Http2DataStreamSinkChannel;
 import io.undertow.protocols.http2.Http2HeadersStreamSinkChannel;
+import io.undertow.protocols.http2.Http2RstStreamStreamSourceChannel;
 import io.undertow.protocols.http2.Http2StreamSourceChannel;
 import io.undertow.server.ConduitWrapper;
 import io.undertow.server.ConnectorStatisticsImpl;
@@ -117,6 +118,9 @@ public class Http2ReceiveListener implements ChannelListener<Http2Channel> {
                 handleRequests(channel, (Http2StreamSourceChannel) frame);
 
             }
+            if (frame instanceof Http2RstStreamStreamSourceChannel) {
+                handleRSTStream((Http2RstStreamStreamSourceChannel) frame);
+            }
 
         } catch (IOException e) {
             UndertowLogger.REQUEST_IO_LOGGER.ioException(e);
@@ -124,6 +128,53 @@ public class Http2ReceiveListener implements ChannelListener<Http2Channel> {
         } catch (Throwable t) {
             UndertowLogger.REQUEST_IO_LOGGER.handleUnexpectedFailure(t);
             IoUtils.safeClose(channel);
+        }
+    }
+
+    private void handleRSTStream(Http2RstStreamStreamSourceChannel frame) {
+        switch (frame.getErrorCode()) {
+        case Http2Channel.ERROR_NO_ERROR:
+            System.out.println(this + "RST_STREAM NO_ERROR");
+            break;
+        case Http2Channel.ERROR_PROTOCOL_ERROR:
+            System.out.println(this + "RST_STREAM PROTOCOL_ERROR");
+            break;
+        case Http2Channel.ERROR_INTERNAL_ERROR:
+            System.out.println(this + "RST_STREAM INTERNAL_ERROR");
+            break;
+        case Http2Channel.ERROR_FLOW_CONTROL_ERROR:
+            System.out.println(this + "RST_STREAM FLOW_CONTROL_ERROR");
+            break;
+        case Http2Channel.ERROR_SETTINGS_TIMEOUT:
+            System.out.println(this + "RST_STREAM SETTINGS_TIMEOUT");
+            break;
+        case Http2Channel.ERROR_STREAM_CLOSED:
+            System.out.println(this + "RST_STREAM STREAM_CLOSED");
+            break;
+        case Http2Channel.ERROR_FRAME_SIZE_ERROR:
+            System.out.println(this + "RST_STREAM FRAME_SIZE_ERROR");
+            break;
+        case Http2Channel.ERROR_REFUSED_STREAM:
+            System.out.println(this + "RST_STREAM REFUSED_STREAM");
+            break;
+        case Http2Channel.ERROR_CANCEL:
+            System.out.println(this + "RST_STREAM ERROR_CANCEL");
+            break;
+        case Http2Channel.ERROR_COMPRESSION_ERROR:
+            System.out.println(this + "RST_STREAM COMPRESSION_ERROR");
+            break;
+        case Http2Channel.ERROR_CONNECT_ERROR:
+            System.out.println(this + "RST_STREAM CONNECT_ERROR");
+            break;
+        case Http2Channel.ERROR_ENHANCE_YOUR_CALM:
+            System.out.println(this + "RST_STREAM ENHANCE_YOUR_CALM");
+            break;
+        case Http2Channel.ERROR_INADEQUATE_SECURITY:
+            System.out.println(this + "RST_STREAM INADEQUATE_SECURITY");
+            break;
+        case Http2Channel.ERROR_HTTP_1_1_REQUIRED:
+            System.out.println(this + "RST_STREAM HTTP_1_1_REQUIRED");
+            break;
         }
     }
 

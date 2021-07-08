@@ -24,6 +24,7 @@ import static org.xnio.Bits.anyAreSet;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.servlet.DispatcherType;
@@ -149,7 +150,11 @@ public class ServletOutputStreamImpl extends ServletOutputStream implements Buff
             } else {
                 buffer.put(b, off, len);
                 if (buffer.remaining() == 0) {
-                    writeBufferBlocking(false);
+                    try {
+                        writeBufferBlocking(false);
+                    } catch (ClosedChannelException e) {
+                        return;
+                    }
                 }
             }
             updateWritten(len);
