@@ -21,6 +21,8 @@ package io.undertow.server;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.channels.Channel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -133,7 +135,15 @@ public class ReadTimeoutTestCase {
                 //ignore
             }
             if (errorLatch.await(5, TimeUnit.SECONDS)) {
-                Assert.assertEquals(ReadTimeoutException.class, exception.getClass());
+                final String exceptionStackTrace;
+                try (StringWriter sw = new StringWriter();
+                     PrintWriter pw = new PrintWriter(sw)) {
+                    exception.printStackTrace(pw);
+                    exceptionStackTrace = sw.toString();
+                } catch (IOException ioe) {
+                    throw new IllegalStateException(ioe);
+                }
+                Assert.assertEquals(exceptionStackTrace, ReadTimeoutException.class, exception.getClass());
             } else {
                 Assert.fail("Read did not time out");
             }
