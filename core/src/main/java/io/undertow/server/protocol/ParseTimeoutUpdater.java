@@ -19,6 +19,7 @@
 package io.undertow.server.protocol;
 
 import io.undertow.UndertowLogger;
+import io.undertow.io.RequestCallback;
 import io.undertow.server.ServerConnection;
 import io.undertow.util.WorkerUtils;
 import org.xnio.IoUtils;
@@ -35,7 +36,7 @@ import java.util.concurrent.TimeUnit;
  * @author Sebastian Laskawiec
  * @see io.undertow.UndertowOptions#REQUEST_PARSE_TIMEOUT
  */
-public final class ParseTimeoutUpdater implements Runnable, ServerConnection.CloseListener, Closeable {
+public final class ParseTimeoutUpdater implements Runnable, ServerConnection.CloseListener, Closeable, RequestCallback {
 
     private final ConnectedChannel connection;
     private final long requestParseTimeout;
@@ -80,6 +81,7 @@ public final class ParseTimeoutUpdater implements Runnable, ServerConnection.Clo
     /**
      * Called when the connection goes idle
      */
+    @Override
     public void connectionIdle() {
         parsing = false;
         handleSchedule(requestIdleTimeout);
@@ -116,6 +118,7 @@ public final class ParseTimeoutUpdater implements Runnable, ServerConnection.Clo
      * and if the request is not parsed within this time then the connection is closed.
      *
      */
+    @Override
     public void failedParse() {
         if(!parsing) {
             parsing = true;
@@ -129,6 +132,7 @@ public final class ParseTimeoutUpdater implements Runnable, ServerConnection.Clo
      * Should be called after parsing is complete (to avoid closing connection during other activities).
      * </p>
      */
+    @Override
     public void requestStarted() {
         expireTime = -1;
         parsing = false;

@@ -72,6 +72,7 @@ public class HttpClientTestCase {
     public static final String MESSAGE = "/message";
     public static final String POST = "/post";
     private static XnioWorker worker;
+    private static XnioWorker previousWorker;
 
     private static final OptionMap DEFAULT_OPTIONS;
     private static final URI ADDRESS;
@@ -105,6 +106,7 @@ public class HttpClientTestCase {
         // Create xnio worker
         final Xnio xnio = Xnio.getInstance();
         final XnioWorker xnioWorker = xnio.createWorker(null, DEFAULT_OPTIONS);
+        previousWorker = worker;
         worker = xnioWorker;
         DefaultServer.setRootHandler(new PathHandler()
         .addExactPath(MESSAGE, new HttpHandler() {
@@ -129,6 +131,7 @@ public class HttpClientTestCase {
     @AfterClass
     public static void afterClass() {
         worker.shutdown();
+        worker = previousWorker;
     }
 
     static UndertowClient createClient() {

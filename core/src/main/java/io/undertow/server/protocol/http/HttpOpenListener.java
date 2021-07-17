@@ -24,13 +24,6 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.xnio.ChannelListener;
-import org.xnio.IoUtils;
-import org.xnio.OptionMap;
-import org.xnio.Options;
-import org.xnio.Pool;
-import org.xnio.StreamConnection;
-
 import io.undertow.UndertowLogger;
 import io.undertow.UndertowMessages;
 import io.undertow.UndertowOptions;
@@ -47,6 +40,12 @@ import io.undertow.server.DelegateOpenListener;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.ServerConnection;
 import io.undertow.server.XnioByteBufferPool;
+import org.xnio.ChannelListener;
+import org.xnio.IoUtils;
+import org.xnio.OptionMap;
+import org.xnio.Options;
+import org.xnio.Pool;
+import org.xnio.StreamConnection;
 
 /**
  * Open listener for HTTP server.  XNIO should be set up to chain the accept handler to post-accept open
@@ -106,6 +105,7 @@ public final class HttpOpenListener implements ChannelListener<StreamConnection>
             UndertowLogger.REQUEST_LOGGER.tracef("Opened connection with %s", channel.getPeerAddress());
         }
 
+        ReadTimeoutStreamSourceConduit readTimeoutSourceConduit = null;
         //set read and write timeouts
         try {
             Integer readTimeout = channel.getOption(Options.READ_TIMEOUT);
@@ -116,7 +116,8 @@ public final class HttpOpenListener implements ChannelListener<StreamConnection>
                 channel.getSinkChannel().setConduit(conduit);
             }
             if (readTimeout != null && readTimeout > 0) {
-                channel.getSourceChannel().setConduit(new ReadTimeoutStreamSourceConduit(channel.getSourceChannel().getConduit(), channel, this));
+                readTimeoutSourceConduit = new ReadTimeoutStreamSourceConduit(channel.getSourceChannel().getConduit(), channel, this);
+                channel.getSourceChannel().setConduit(readTimeoutSourceConduit);
             }
             Integer writeTimeout = channel.getOption(Options.WRITE_TIMEOUT);
             if (writeTimeout != null && writeTimeout > 0) {
@@ -135,7 +136,7 @@ public final class HttpOpenListener implements ChannelListener<StreamConnection>
         }
 
         HttpServerConnection connection = new HttpServerConnection(channel, bufferPool, rootHandler, undertowOptions, bufferSize, statisticsEnabled ? connectorStatistics : null);
-        HttpReadListener readListener = new HttpReadListener(connection, parser, statisticsEnabled ? connectorStatistics : null);
+        HttpReadListener readListener = new HttpReadListener(connection, parser, statisticsEnabled ? connectorStatistics : null, readTimeoutSourceConduit);
 
 
         if (buffer != null) {

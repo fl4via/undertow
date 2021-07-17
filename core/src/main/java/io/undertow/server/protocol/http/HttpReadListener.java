@@ -23,6 +23,7 @@ import io.undertow.UndertowMessages;
 import io.undertow.UndertowOptions;
 import io.undertow.conduits.ReadDataStreamSourceConduit;
 import io.undertow.connector.PooledByteBuffer;
+import io.undertow.io.RequestCallback;
 import io.undertow.protocols.http2.Http2Channel;
 import io.undertow.server.ConnectorStatisticsImpl;
 import io.undertow.server.Connectors;
@@ -89,9 +90,11 @@ final class HttpReadListener implements ChannelListener<ConduitStreamSourceChann
 
     private final ConnectorStatisticsImpl connectorStatistics;
 
-    private ParseTimeoutUpdater parseTimeoutUpdater;
+    private final RequestCallback callback;
 
-    HttpReadListener(final HttpServerConnection connection, final HttpRequestParser parser, ConnectorStatisticsImpl connectorStatistics) {
+    //private ParseTimeoutUpdater parseTimeoutUpdater;
+
+    HttpReadListener(final HttpServerConnection connection, final HttpRequestParser parser, final ConnectorStatisticsImpl connectorStatistics, final RequestCallback callback) {
         this.connection = connection;
         this.parser = parser;
         this.connectorStatistics = connectorStatistics;
@@ -102,20 +105,37 @@ final class HttpReadListener implements ChannelListener<ConduitStreamSourceChann
         this.allowUnknownProtocols = connection.getUndertowOptions().get(UndertowOptions.ALLOW_UNKNOWN_PROTOCOLS, false);
         int requestParseTimeout = connection.getUndertowOptions().get(UndertowOptions.REQUEST_PARSE_TIMEOUT, -1);
         int requestIdleTimeout = connection.getUndertowOptions().get(UndertowOptions.NO_REQUEST_TIMEOUT, -1);
-        if(requestIdleTimeout < 0 && requestParseTimeout < 0) {
-            this.parseTimeoutUpdater = null;
-        } else {
-            this.parseTimeoutUpdater = new ParseTimeoutUpdater(connection, requestParseTimeout, requestIdleTimeout);
+        if(requestIdleTimeout >= 0 || requestParseTimeout >= 0) {
+            final ParseTimeoutUpdater parseTimeoutUpdater = new ParseTimeoutUpdater(connection, requestParseTimeout, requestIdleTimeout);
             connection.addCloseListener(parseTimeoutUpdater);
-        }
+            if (callback == null) {
+                this.callback = parseTimeoutUpdater;
+            } else {
+                this.callback = new RequestCallback() {
+                    public void requestStarted() {
+                        parseTimeoutUpdater.requestStarted();
+                        callback.requestStarted();
+                    }
+
+                    public void connectionIdle() {
+                        parseTimeoutUpdater.connectionIdle();
+                    }
+
+                    public void failedParse() {
+                        parseTimeoutUpdater.failedParse();
+                    }
+                };
+            }
+        } else
+            this.callback = callback;
         state = new ParseState(connection.getUndertowOptions().get(UndertowOptions.HTTP_HEADERS_CACHE_SIZE, UndertowOptions.DEFAULT_HTTP_HEADERS_CACHE_SIZE));
     }
 
     public void newRequest() {
         state.reset();
         read = 0;
-        if(parseTimeoutUpdater != null) {
-            parseTimeoutUpdater.connectionIdle();
+        if(callback != null) {
+            callback.connectionIdle();
         }
         connection.setCurrentExchange(null);
     }
@@ -166,8 +186,8 @@ final class HttpReadListener implements ChannelListener<ConduitStreamSourceChann
                 }
 
                 if (res <= 0) {
-                    if(bytesRead && parseTimeoutUpdater != null) {
-                        parseTimeoutUpdater.failedParse();
+                    if(bytesRead && callback != null) {
+                        callback.failedParse();
                     }
                     handleFailedRead(channel, res);
                     return;
@@ -197,8 +217,9 @@ final class HttpReadListener implements ChannelListener<ConduitStreamSourceChann
                     return;
                 }
             } while (!state.isComplete());
-            if(parseTimeoutUpdater != null) {
-                parseTimeoutUpdater.requestStarted();
+
+            if (callback != null) {
+                callback.requestStarted();
             }
 
             final HttpServerExchange httpServerExchange = this.httpServerExchange;
