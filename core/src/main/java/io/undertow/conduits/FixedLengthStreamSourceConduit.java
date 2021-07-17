@@ -235,6 +235,7 @@ public final class FixedLengthStreamSourceConduit extends AbstractStreamSourceCo
         }
         int res = 0;
         final long remaining = val & MASK_COUNT;
+        Throwable exception = null;
         try {
             final int lim = dst.limit();
             final int pos = dst.position();
@@ -250,9 +251,15 @@ public final class FixedLengthStreamSourceConduit extends AbstractStreamSourceCo
             }
         } catch (IOException | RuntimeException | Error e) {
             IoUtils.safeClose(exchange.getConnection());
+            exception = e;
             throw e;
         }  finally {
-            exitRead(res);
+            try {
+                exitRead(res);
+            } catch (IOException | RuntimeException e) {
+                if (exception != null)
+                    e.addSuppressed(exception);
+            }
         }
     }
 
