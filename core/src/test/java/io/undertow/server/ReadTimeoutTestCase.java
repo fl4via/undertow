@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.SocketException;
 import java.nio.channels.Channel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -68,7 +69,7 @@ public class ReadTimeoutTestCase {
     }
 
     @Test
-    public void testReadTimeout() throws InterruptedException {
+    public void testReadTimeout() throws InterruptedException, IOException {
         final CountDownLatch errorLatch = new CountDownLatch(1);
         DefaultServer.setRootHandler((final HttpServerExchange exchange) -> {
                 final StreamSinkChannel response = exchange.getResponseChannel();
@@ -82,6 +83,7 @@ public class ReadTimeoutTestCase {
                                     }
                                 }.setup(response);
                         }, (final StreamSourceChannel channel, final IOException e) -> {
+                                e.printStackTrace();
                                 exchange.endExchange();
                                 exception = e;
                                 errorLatch.countDown();
@@ -129,11 +131,14 @@ public class ReadTimeoutTestCase {
                 }
             });
             post.addHeader(Headers.CONNECTION_STRING, "close");
+            boolean socketFailure = false;
             try {
                 client.execute(post);
-            } catch (IOException e) {
-                //ignore
+            } catch (SocketException e) {
+                Assert.assertTrue(e.getMessage().contains("Broken pipe"));
+                socketFailure = true;
             }
+            Assert.assertTrue("Test sent request without any exception", socketFailure);
             if (errorLatch.await(5, TimeUnit.SECONDS)) {
                 final String exceptionStackTrace;
                 try (StringWriter sw = new StringWriter();
@@ -144,8 +149,9 @@ public class ReadTimeoutTestCase {
                     throw new IllegalStateException(ioe);
                 }
                 Assert.assertEquals(exceptionStackTrace, ReadTimeoutException.class, exception.getClass());
-            } else {
-                Assert.fail("Read did not time out");
+            } else if (!DefaultServer.isProxy()) {
+                // ignore if proxy, because when we're on proxy, we won't be able to see the exception
+                Assert.fail("Did not get ReadTimeoutException");
             }
         } finally {
             client.getConnectionManager().shutdown();
