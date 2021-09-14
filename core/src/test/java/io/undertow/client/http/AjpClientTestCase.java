@@ -218,6 +218,12 @@ public class AjpClientTestCase {
                 }
 
             } finally {
+                // add an extra sleep time to make sure we are not getting a BindException
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    // ignore
+                }
                 undertow.start();
             }
 
