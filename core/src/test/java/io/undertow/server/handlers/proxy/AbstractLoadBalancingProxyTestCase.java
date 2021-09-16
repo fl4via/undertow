@@ -77,6 +77,10 @@ public abstract class AbstractLoadBalancingProxyTestCase {
     public static void teardown() {
         server1.stop();
         server2.stop();
+        // sleep 1 s to prevent BindException (Address already in use) when restarting the server
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ignore) {}
     }
 
     @Test
