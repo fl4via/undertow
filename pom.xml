@@ -105,6 +105,7 @@
         <version.jmh>1.21</version.jmh>
 
         <version.org.wildfly.extras.batavia>1.0.4.Final</version.org.wildfly.extras.batavia>
+        <version.surefire.plugin>3.0.0-M5</version.surefire.plugin>
     </properties>
 
     <modules>
