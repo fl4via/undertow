@@ -452,4 +452,8 @@ public interface UndertowLogger extends BasicLogger {
     @LogMessage(level = DEBUG)
     @Message(id = 5098, value = "GSSAPI negotiation failed for %s")
     void failedToNegotiateAtGSSAPI(final HttpServerExchange exchange, final @Cause Throwable e);
+
+    @LogMessage(level = WARN)
+    @Message(id = 5099, value = "Flushing waiting in a frame more than %s miliseconds. The framed channel will be forcibly closed.")
+    void noFrameflushInTimeout(long timeoutMiliseconds);
 }
