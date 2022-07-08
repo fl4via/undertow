@@ -91,7 +91,6 @@ public class Http2UpgradeHandler implements HttpHandler {
             } else {
                 handleUpgradeBody(exchange, upgrade, settings);
             }
-
             return;
         }
         next.handleRequest(exchange);
