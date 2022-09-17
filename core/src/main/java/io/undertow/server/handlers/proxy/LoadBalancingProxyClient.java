@@ -310,7 +310,7 @@ public class LoadBalancingProxyClient implements ProxyClient {
 
                                 @Override
                                 public void closed(ServerConnection connection) {
-                                    ClientConnection clientConnection = newHolder.connection.getConnection();
+                                    ClientConnection clientConnection =newHolder.connection.getConnection();
                                     if (clientConnection.isOpen()) {
                                         safeClose(clientConnection);
                                     }
