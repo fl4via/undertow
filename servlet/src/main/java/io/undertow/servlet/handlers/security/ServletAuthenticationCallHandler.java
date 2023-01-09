@@ -20,8 +20,12 @@ package io.undertow.servlet.handlers.security;
 import io.undertow.security.api.SecurityContext;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
+import io.undertow.servlet.api.SecurityInfo;
+import io.undertow.servlet.api.SingleConstraintMatch;
 import io.undertow.servlet.handlers.ServletRequestContext;
 import io.undertow.util.StatusCodes;
+
+import java.util.List;
 
 /**
  * This is the final {@link io.undertow.server.HttpHandler} in the security chain, it's purpose is to act as a barrier at the end of the chain to
@@ -52,7 +56,21 @@ public class ServletAuthenticationCallHandler implements HttpHandler {
             return;
         }
         SecurityContext context = exchange.getSecurityContext();
-        if (context.authenticate()) {
+        // TODO delete this block and follow next TODO
+        final ServletRequestContext servletRequestContext = exchange.getAttachment(ServletRequestContext.ATTACHMENT_KEY);
+        final List<SingleConstraintMatch> list = servletRequestContext.getRequiredConstrains();
+        if (list != null) {
+            for (SingleConstraintMatch match : list) {
+                if (match.getRequiredRoles().isEmpty() && match.getEmptyRoleSemantic() == SecurityInfo.EmptyRoleSemantic.DENY) {
+                    next.handleRequest(exchange); // do not try to authenticate forbidden requests, or else we risk returning UNAUTHENTICATED
+                    return;
+                }
+            }
+        }
+        // TODO check if exchange.getSecurityContext().skipAuthentication()
+        // add that method to getSecurityContext() and mark skipAuthentication as
+        // part of ServletAuthenticationCallHandler.isAuthenticationRequired
+        if (/*!exchange.getSecurityContext().skipAuthentication() || */context.authenticate()) {
             if(!exchange.isComplete()) {
                next.handleRequest(exchange);
             }

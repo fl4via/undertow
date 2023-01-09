@@ -246,6 +246,12 @@ public class DenyUncoveredHttpMethodsTestCase {
         HttpClientUtils.readResponse(result);
 
         request = newRequest.get();
+        request.addHeader(AUTHORIZATION.toString(), BASIC + " " + FlexBase64.encodeString("user:wrongpassword".getBytes(), false));
+        result = client.execute(request);
+        assertEquals(UNAUTHORIZED, result.getStatusLine().getStatusCode());
+        HttpClientUtils.readResponse(result);
+
+        request = newRequest.get();
         request.addHeader(AUTHORIZATION.toString(), BASIC + " " + FlexBase64.encodeString("user:password".getBytes(), false));
         request.addHeader("ExpectedMechanism", "BASIC");
         request.addHeader("ExpectedUser", "user");
@@ -253,6 +259,12 @@ public class DenyUncoveredHttpMethodsTestCase {
         assertEquals(OK, result.getStatusLine().getStatusCode());
         String response = HttpClientUtils.readResponse(result);
         assertEquals(HELLO_WORLD, response);
+
+        request = newRequest.get();
+        request.addHeader(AUTHORIZATION.toString(), BASIC + " " + FlexBase64.encodeString("unauthorized-user:wrongpassword".getBytes(), false));
+        result = client.execute(request);
+        assertEquals(UNAUTHORIZED, result.getStatusLine().getStatusCode());
+        HttpClientUtils.readResponse(result);
 
         request = newRequest.get();
         request.addHeader(AUTHORIZATION.toString(), BASIC + " " + FlexBase64.encodeString("unauthorized-user:password".getBytes(), false));
@@ -279,11 +291,29 @@ public class DenyUncoveredHttpMethodsTestCase {
         HttpClientUtils.readResponse(result);
 
         request = newRequest.get();
+        request.addHeader(AUTHORIZATION.toString(), BASIC + " " + FlexBase64.encodeString("user:wrongpassword".getBytes(), false));
+        result = client.execute(request);
+        assertEquals(FORBIDDEN, result.getStatusLine().getStatusCode());
+        assertEquals(0, values.length);
+        values = result.getHeaders(WWW_AUTHENTICATE.toString());
+        assertEquals(0, values.length);
+        HttpClientUtils.readResponse(result);
+
+        request = newRequest.get();
         request.addHeader(AUTHORIZATION.toString(), BASIC + " " + FlexBase64.encodeString("user:password".getBytes(), false));
         request.addHeader("ExpectedMechanism", "BASIC");
         request.addHeader("ExpectedUser", "user");
         result = client.execute(request);
         assertEquals(FORBIDDEN, result.getStatusLine().getStatusCode());
+        values = result.getHeaders(WWW_AUTHENTICATE.toString());
+        assertEquals(0, values.length);
+        HttpClientUtils.readResponse(result);
+
+        request = newRequest.get();
+        request.addHeader(AUTHORIZATION.toString(), BASIC + " " + FlexBase64.encodeString("unauthorized-user:wrongpassword".getBytes(), false));
+        result = client.execute(request);
+        assertEquals(FORBIDDEN, result.getStatusLine().getStatusCode());
+        assertEquals(0, values.length);
         values = result.getHeaders(WWW_AUTHENTICATE.toString());
         assertEquals(0, values.length);
         HttpClientUtils.readResponse(result);
