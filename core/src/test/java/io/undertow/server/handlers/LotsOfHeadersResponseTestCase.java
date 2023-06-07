@@ -18,14 +18,12 @@
 
 package io.undertow.server.handlers;
 
-import java.io.IOException;
-
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.testutils.AjpIgnore;
 import io.undertow.testutils.DefaultServer;
-import io.undertow.util.HttpString;
 import io.undertow.testutils.TestHttpClient;
+import io.undertow.util.HttpString;
 import io.undertow.util.StatusCodes;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -34,6 +32,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import java.io.IOException;
 
 /**
  * @author Stuart Douglas
@@ -70,7 +70,7 @@ public class LotsOfHeadersResponseTestCase {
             for (int i = 0; i < COUNT; ++i) {
                 Header[] header = result.getHeaders(HEADER + i);
                 if (header.length == 0) {
-                    Assert.fail("Header " + HEADER + i + " not found");
+                    Assert.fail("Header " + HEADER + i + " not found, there are a total of " + result.getAllHeaders().length + " headers");
                 }
                 Assert.assertEquals(MESSAGE + i, header[0].getValue());
             }

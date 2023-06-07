@@ -57,8 +57,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        module: [core, servlet, websockets-jsr]
+        os: [windows-latest]
+        module: [core]
         jdk: [11, 17]
         openjdk_impl: [ temurin ]
     steps:
@@ -103,7 +103,7 @@ jobs:
     - name: Print Version
       run: mvn -v
     - name: Run Tests
-      run: mvn -U -B -fae test -Pproxy '-DfailIfNoTests=false' -pl ${{ matrix.module }}
+      run: mvn -U -B -fae test -Pproxy -Dtest=LotsOfHeadersResponseTestCase '-DfailIfNoTests=false' -pl ${{ matrix.module }}
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
