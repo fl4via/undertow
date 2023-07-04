@@ -326,8 +326,10 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                                     }
                                 } while (buffer.hasRemaining());
                             }
-                            pooledBuffer.close();
-                            pooledBuffer = null;
+                            if (pooledBuffer != null) {
+                                pooledBuffer.close();
+                                pooledBuffer = null;
+                            }
                             log.trace("Body");
                             return STATE_BODY;
                         }
