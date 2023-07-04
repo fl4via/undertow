@@ -245,6 +245,7 @@ final class HttpReadListener implements ChannelListener<ConduitStreamSourceChann
             }
             if(requireHostHeader && httpServerExchange.getProtocol().equals(Protocols.HTTP_1_1)) {
                 if(host == null || host.size() ==0 || host.getFirst().isEmpty()) {
+                    UndertowLogger.ROOT_LOGGER.tracef("No host in the request: %s", httpServerExchange);
                     sendBadRequestAndClose(connection.getChannel(), UndertowMessages.MESSAGES.noHostInHttp11Request());
                     return;
                 }
