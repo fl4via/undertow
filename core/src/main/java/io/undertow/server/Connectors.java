@@ -574,6 +574,7 @@ public class Connectors {
         for(int i = 0; i < length; ++i) {
             byte c = header.byteAt(i);
             if(!ALLOWED_TOKEN_CHARACTERS[c]) {
+                UndertowLogger.ROOT_LOGGER.debugf("Unexpected header: %s",  header);
                 throw UndertowMessages.MESSAGES.invalidToken(c);
             }
         }
