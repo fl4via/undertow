@@ -117,11 +117,12 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
         for (;;) {
             switch (state) {
                 case STATE_BODY: {
+                    log.tracef("%s.processWrite state is body", this);
                     // shouldn't be possible, but might as well do the right thing anyway
                     return state;
                 }
                 case STATE_START: {
-                    log.trace("Starting request");
+                    log.tracef("%s.processWrite starting request", this);
                     int len = request.getMethod().length() + request.getPath().length() + request.getProtocol().length() + 4;
 
                     // test that our buffer has enough space for the initial request line plus one more CR+LF
@@ -153,19 +154,20 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     HeaderMap headers = request.getRequestHeaders();
                     nameIterator = headers.getHeaderNames().iterator();
                     if (! nameIterator.hasNext()) {
-                        log.trace("No request headers");
+                        log.tracef("%s.processWrite: no request headers at start request", this);
                         buffer.put((byte) '\r').put((byte) '\n');
                         buffer.flip();
                         while (buffer.hasRemaining()) {
                             res = next.write(buffer);
                             if (res == 0) {
                                 log.trace("Continuation");
+                                log.tracef("%s.processWrite: continuation at start request", this);
                                 return STATE_BUF_FLUSH;
                             }
                         }
                         pooledBuffer.close();
                         pooledBuffer = null;
-                        log.trace("Body");
+                        log.tracef("%s.processWrite: reached state body", this);
                         return STATE_BODY;
                     }
                     headerName = nameIterator.next();
@@ -173,13 +175,13 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     // fall thru
                 }
                 case STATE_HDR_NAME: {
-                    log.tracef("Processing header '%s'", headerName);
+                    log.tracef("%s.processWrite: processing header '%s'", this, headerName);
                     length = headerName.length();
                     while (charIndex < length) {
                         if (buffer.hasRemaining()) {
                             buffer.put(headerName.byteAt(charIndex++));
                         } else {
-                            log.trace("Buffer flush");
+                            log.tracef("%s.processWrite: at header name, flushing buffer", this);
                             buffer.flip();
                             do {
                                 res = next.write(buffer);
@@ -194,12 +196,13 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     // fall thru
                 }
                 case STATE_HDR_D: {
+                    log.tracef("%s.processWrite: writing at hdr d", this);
                     if (! buffer.hasRemaining()) {
                         buffer.flip();
                         do {
                             res = next.write(buffer);
                             if (res == 0) {
-                                log.trace("Continuation");
+                                log.tracef("%s.processWrite: continuation at hdr d", this);
                                 return STATE_HDR_D;
                             }
                         } while (buffer.hasRemaining());
@@ -209,12 +212,14 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     // fall thru
                 }
                 case STATE_HDR_DS: {
+                    log.tracef("%s.processWrite: writing at hdr_ds ", this);
                     if (! buffer.hasRemaining()) {
                         buffer.flip();
                         do {
                             res = next.write(buffer);
                             if (res == 0) {
                                 log.trace("Continuation");
+                                log.tracef("%s.processWrite: continmuation at hdr ds", this);
                                 return STATE_HDR_DS;
                             }
                         } while (buffer.hasRemaining());
@@ -231,6 +236,7 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                 }
                 case STATE_HDR_VAL: {
                     log.tracef("Processing header value '%s'", string);
+                    log.tracef("%s.processWrite: state is hdr_val", this);
                     length = string.length();
                     while (charIndex < length) {
                         if (buffer.hasRemaining()) {
@@ -240,7 +246,7 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                             do {
                                 res = next.write(buffer);
                                 if (res == 0) {
-                                    log.trace("Continuation");
+                                    log.tracef("%s.processWrite: continuation at hdr_val", this);
                                     return STATE_HDR_VAL;
                                 }
                             } while (buffer.hasRemaining());
@@ -249,12 +255,13 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     }
                     charIndex = 0;
                     if (! valueIterator.hasNext()) {
+                        log.tracef("%s.processWrite: done writing header value, moving to eol", this);
                         if (! buffer.hasRemaining()) {
                             buffer.flip();
                             do {
                                 res = next.write(buffer);
                                 if (res == 0) {
-                                    log.trace("Continuation");
+                                    log.tracef("%s.processWrite: continuation at hdr_eol_cr", this);
                                     return STATE_HDR_EOL_CR;
                                 }
                             } while (buffer.hasRemaining());
@@ -266,7 +273,7 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                             do {
                                 res = next.write(buffer);
                                 if (res == 0) {
-                                    log.trace("Continuation");
+                                    log.tracef("%s.processWrite: continuation at hdr_eol_lf", this);
                                     return STATE_HDR_EOL_LF;
                                 }
                             } while (buffer.hasRemaining());
@@ -277,14 +284,16 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                             headerName = nameIterator.next();
                             valueIterator = null;
                             state = STATE_HDR_NAME;
+                            log.tracef("%s.processWrite: changing state from hdr_val to hdr_name", this);
                             break;
                         } else {
+                            log.tracef("%s.processWrite: changing state at hdr_val, we are done writing headers", this);
                             if (! buffer.hasRemaining()) {
                                 buffer.flip();
                                 do {
                                     res = next.write(buffer);
                                     if (res == 0) {
-                                        log.trace("Continuation");
+                                        log.tracef("%s.processWrite: continuation at hdr_final_cr", this);
                                         return STATE_HDR_FINAL_CR;
                                     }
                                 } while (buffer.hasRemaining());
@@ -297,6 +306,7 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                                     res = next.write(buffer);
                                     if (res == 0) {
                                         log.trace("Continuation");
+                                        log.tracef("%s.processWrite: continuation at hdr_final_lf", this);
                                         return STATE_HDR_FINAL_LF;
                                     }
                                 } while (buffer.hasRemaining());
@@ -309,19 +319,22 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                             buffer.flip();
                             //for performance reasons we use a gather write if there is user data
                             if(userData == null) {
+                                log.tracef("%s.processWrite: writing buffer after header", this);
                                 do {
                                     res = next.write(buffer);
                                     if (res == 0) {
                                         log.trace("Continuation");
+                                        log.tracef("%s.processWrite: continuation at buf_flush", this);
                                         return STATE_BUF_FLUSH;
                                     }
                                 } while (buffer.hasRemaining());
                             } else {
+                                log.tracef("%s.processWrite: at hdr_val, writing userData after header", this);
                                 ByteBuffer[] b = {buffer, userData};
                                 do {
                                     long r = next.write(b, 0, b.length);
                                     if (r == 0 && buffer.hasRemaining()) {
-                                        log.trace("Continuation");
+                                        log.tracef("%s.processWrite: continuation at bluf_flush", this);
                                         return STATE_BUF_FLUSH;
                                     }
                                 } while (buffer.hasRemaining());
@@ -329,8 +342,9 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                             if (pooledBuffer != null) {
                                 pooledBuffer.close();
                                 pooledBuffer = null;
-                            }
-                            log.trace("Body");
+                            } else
+                                log.tracef("%s.processWrite: WARNING: pooledBuffer was null!", this);
+                            log.tracef("%s.processWrite: returning state body", this);
                             return STATE_BODY;
                         }
                         // not reached
@@ -339,12 +353,13 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                 }
                 // Clean-up states
                 case STATE_HDR_EOL_CR: {
+                    log.tracef("%s.processWrite: at hdr_eol_cr", this);
                     if (! buffer.hasRemaining()) {
                         buffer.flip();
                         do {
                             res = next.write(buffer);
                             if (res == 0) {
-                                log.trace("Continuation");
+                                log.tracef("%s.processWrite: continuation at hdr_eol_cr", this);
                                 return STATE_HDR_EOL_CR;
                             }
                         } while (buffer.hasRemaining());
@@ -353,12 +368,13 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     buffer.put((byte) 13); // CR
                 }
                 case STATE_HDR_EOL_LF: {
+                    log.tracef("%s.processWrite: at hdr_eol_lf state", this);
                     if (! buffer.hasRemaining()) {
                         buffer.flip();
                         do {
                             res = next.write(buffer);
                             if (res == 0) {
-                                log.trace("Continuation");
+                                log.tracef("%s.processWrite: continuation at hdr_eol_lf", this);
                                 return STATE_HDR_EOL_LF;
                             }
                         } while (buffer.hasRemaining());
@@ -366,23 +382,26 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     }
                     buffer.put((byte) 10); // LF
                     if(valueIterator != null && valueIterator.hasNext()) {
+                        log.tracef("%s.processWrite: moving from hdr_eol_lf to hdr_name state because there are more values", this);
                         state = STATE_HDR_NAME;
                         break;
                     } else if (nameIterator.hasNext()) {
                         headerName = nameIterator.next();
                         valueIterator = null;
+                        log.tracef("%s.processWrite: moving from hdr_eol_lf to hdr_name state because there are more names", this);
                         state = STATE_HDR_NAME;
                         break;
                     }
                     // fall thru
                 }
                 case STATE_HDR_FINAL_CR: {
+                    log.tracef("%s.processWrite: at hdr_final_cr state", this);
                     if (! buffer.hasRemaining()) {
                         buffer.flip();
                         do {
                             res = next.write(buffer);
                             if (res == 0) {
-                                log.trace("Continuation");
+                                log.tracef("%s.processWrite: continuation at hdr_final_cr", this);
                                 return STATE_HDR_FINAL_CR;
                             }
                         } while (buffer.hasRemaining());
@@ -392,12 +411,14 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     // fall thru
                 }
                 case STATE_HDR_FINAL_LF: {
+                    log.tracef("%s.processWrite: at hdr_final_lf state", this);
                     if (! buffer.hasRemaining()) {
                         buffer.flip();
                         do {
                             res = next.write(buffer);
                             if (res == 0) {
                                 log.trace("Continuation");
+                                log.tracef("%s.processWrite: continuation at hdr_final_lf", this);
                                 return STATE_HDR_FINAL_LF;
                             }
                         } while (buffer.hasRemaining());
@@ -410,19 +431,22 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     buffer.flip();
                     //for performance reasons we use a gather write if there is user data
                     if(userData == null) {
+                        log.tracef("%s.processWrite: no user data, just write the buffer", this);
                         do {
                             res = next.write(buffer);
                             if (res == 0) {
                                 log.trace("Continuation");
+                                log.tracef("%s.processWrite: continuation at buf_flush", this);
                                 return STATE_BUF_FLUSH;
                             }
                         } while (buffer.hasRemaining());
                     } else {
+                        log.tracef("%s.processWrite: writing userData", this);
                         ByteBuffer[] b = {buffer, userData};
                         do {
                             long r = next.write(b, 0, b.length);
                             if (r == 0 && buffer.hasRemaining()) {
-                                log.trace("Continuation");
+                                log.tracef("%s.processWrite: continuation at buf_flush", this);
                                 return STATE_BUF_FLUSH;
                             }
                         } while (buffer.hasRemaining());
@@ -430,19 +454,21 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     // fall thru
                 }
                 case STATE_BUF_FLUSH: {
+                    log.tracef("%s.processWrite: at buf_flush state, returning state_body", this);
                     // buffer was successfully flushed above
                     pooledBuffer.close();
                     pooledBuffer = null;
                     return STATE_BODY;
                 }
                 case STATE_URL: {
+                    log.tracef("%s.processWrite: at url state", this);
                     for(int i = charIndex; i < string.length(); ++i) {
                         if(!buffer.hasRemaining()) {
                             buffer.flip();
                             do {
                                 res = next.write(buffer);
                                 if (res == 0) {
-                                    log.trace("Continuation");
+                                    log.tracef("%s.processWrite: coitnuation at url", this);
                                     this.charIndex = i;
                                     this.state = STATE_URL;
                                     return STATE_URL;
@@ -456,20 +482,22 @@ final class HttpRequestConduit extends AbstractStreamSinkConduit<StreamSinkCondu
                     HeaderMap headers = request.getRequestHeaders();
                     nameIterator = headers.getHeaderNames().iterator();
                     state = STATE_HDR_NAME;
+                    log.tracef("%s.processWrite: moving from url to hdr_name state", this);
                     if (! nameIterator.hasNext()) {
-                        log.trace("No request headers");
+                        log.tracef("%s.processWrite: no request headers", this);
                         buffer.put((byte) '\r').put((byte) '\n');
                         buffer.flip();
                         while (buffer.hasRemaining()) {
                             res = next.write(buffer);
                             if (res == 0) {
                                 log.trace("Continuation");
+                                log.tracef("%s.processWrite: continuation at buf_flush", this);
                                 return STATE_BUF_FLUSH;
                             }
                         }
                         pooledBuffer.close();
                         pooledBuffer = null;
-                        log.trace("Body");
+                        log.tracef("%s.processWrite: returning state body", this);
                         return STATE_BODY;
                     }
                     headerName = nameIterator.next();
