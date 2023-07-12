@@ -867,10 +867,12 @@ public class SslConduit implements StreamSourceConduit, StreamSinkConduit {
             }
             throw e;
         } catch (RuntimeException|IOException|Error e) {
+            UndertowLogger.REQUEST_LOGGER.debug("Exception in doUnwrap()", e);
             try {
                 close();
             } catch (Throwable ex) {
                 //we ignore this
+                ex.addSuppressed(e);
                 UndertowLogger.REQUEST_LOGGER.debug("Exception closing SSLConduit after exception in doUnwrap", ex);
             }
             throw e;
@@ -985,9 +987,11 @@ public class SslConduit implements StreamSourceConduit, StreamSinkConduit {
 
             return result.bytesConsumed();
         } catch (RuntimeException|IOException|Error e) {
+            UndertowLogger.REQUEST_LOGGER.debug("Exception in doWrap()", e);
             try {
                 close();
             } catch (Throwable ex) {
+                ex.addSuppressed(e);
                 UndertowLogger.REQUEST_LOGGER.debug("Exception closing SSLConduit after exception in doWrap()", ex);
             }
             throw e;
