@@ -218,6 +218,15 @@ public class Http2ReceiveListener implements ChannelListener<Http2Channel> {
      * @param initial The initial upgrade request that started the HTTP2 connection
      */
     void handleInitialRequest(HttpServerExchange initial, Http2Channel channel, byte[] data) {
+        handleInitialRequest(initial, channel, data, this.decode);
+    }
+
+    /**
+      * Handles the initial request when the exchange was started by a HTTP upgrade.
+      *
+      * @param initial The initial upgrade request that started the HTTP2 connection
+      */
+    void handleInitialRequest(HttpServerExchange initial, Http2Channel channel, byte[] data, boolean decode) {
         //we have a request
         Http2HeadersStreamSinkChannel sink = channel.createInitialUpgradeResponseStream();
         final Http2ServerConnection connection = new Http2ServerConnection(channel, sink, undertowOptions, bufferSize, rootHandler);
@@ -323,7 +332,7 @@ public class Http2ReceiveListener implements ChannelListener<Http2Channel> {
         }
 
         // verify content of request pseudo-headers. Each header should only have a single value.
-        if (headers.contains(PATH)) {
+        if (headers.contains(PATH)) { // AQUI: colocar if (!allowedUnescapedCharactersInUrl fora do loop!!!! é mais eficiente
             for (byte b: headers.get(PATH).getFirst().getBytes(ISO_8859_1)) {
                 if (!allowUnescapedCharactersInUrl && !HttpRequestParser.isTargetCharacterAllowed((char)b)){
                     return false;
