@@ -434,7 +434,7 @@ public class AjpRequestParser {
                     }
                     String result;
                     boolean decodingAlreadyDone = false;
-                    boolean thisIsIt = false;
+                    boolean decodeUnescapedCharacters = false;
                     final StringHolder resultHolder;
                     if (state.currentAttribute.equals(SSL_KEY_SIZE)) {
                         IntegerHolder resultIntHolder = parse16BitInteger(buf, state);
@@ -451,8 +451,8 @@ public class AjpRequestParser {
                             return;
                         }
                         // EAPSUP-1880 check: it works with allow encoded slash + allow unescaped characters in URL or remove allow unescaped characters in URL
-                        thisIsIt = resultHolder.containsUrlCharacters && allowUnescapedCharactersInUrl;
-                        if(resultHolder.containsUnencodedCharacters || thisIsIt) {
+                        decodeUnescapedCharacters = resultHolder.containsUrlCharacters && allowUnescapedCharactersInUrl;
+                        if(resultHolder.containsUnencodedCharacters || decodeUnescapedCharacters) {
                             try {
                                 result = decode(resultHolder.value, true);
                             } catch (UrlDecodeException | UnsupportedEncodingException e) {
@@ -470,7 +470,9 @@ public class AjpRequestParser {
                         String resultAsQueryString = result == null ? "" : result;
                         exchange.setQueryString(resultAsQueryString);
                         try {
-                            if (thisIsIt) {
+                            if (decodeUnescapedCharacters) {
+                                // decoding needs to be done again here, to preserve the parameters and form decoding, even if it has been done at resultAsQueryString
+                                // for more info see UNDERTOW-2312 and UNDERTOW-2555
                                 URLUtils.parseQueryString(resultHolder == null || resultHolder.value == null ? "" : resultHolder.value, exchange, encoding, doDecode, maxParameters);
                             } else {
                                 URLUtils.parseQueryString(resultAsQueryString, exchange, encoding,
