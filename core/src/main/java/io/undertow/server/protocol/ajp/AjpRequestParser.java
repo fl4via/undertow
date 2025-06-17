@@ -434,20 +434,25 @@ public class AjpRequestParser {
                     }
                     String result;
                     boolean decodingAlreadyDone = false;
+                    boolean thisIsIt = false;
+                    final StringHolder resultHolder;
                     if (state.currentAttribute.equals(SSL_KEY_SIZE)) {
-                        IntegerHolder resultHolder = parse16BitInteger(buf, state);
-                        if (!resultHolder.readComplete) {
+                        IntegerHolder resultIntHolder = parse16BitInteger(buf, state);
+                        if (!resultIntHolder.readComplete) {
                             state.state = AjpRequestParseState.READING_ATTRIBUTES;
                             return;
                         }
-                        result = Integer.toString(resultHolder.value);
+                        result = Integer.toString(resultIntHolder.value);
+                        resultHolder = null;
                     } else {
-                        StringHolder resultHolder = parseString(buf, state, state.currentAttribute.equals(QUERY_STRING) ? StringType.QUERY_STRING : StringType.OTHER);
+                        resultHolder = parseString(buf, state, state.currentAttribute.equals(QUERY_STRING) ? StringType.QUERY_STRING : StringType.OTHER);
                         if (!resultHolder.readComplete) {
                             state.state = AjpRequestParseState.READING_ATTRIBUTES;
                             return;
                         }
-                        if(resultHolder.containsUnencodedCharacters || (resultHolder.containsUrlCharacters && allowUnescapedCharactersInUrl)) {
+                        // EAPSUP-1880 check: it works with allow encoded slash + allow unescaped characters in URL or remove allow unescaped characters in URL
+                        thisIsIt = resultHolder.containsUrlCharacters && allowUnescapedCharactersInUrl;
+                        if(resultHolder.containsUnencodedCharacters || thisIsIt) {
                             try {
                                 result = decode(resultHolder.value, true);
                             } catch (UrlDecodeException | UnsupportedEncodingException e) {
@@ -465,7 +470,12 @@ public class AjpRequestParser {
                         String resultAsQueryString = result == null ? "" : result;
                         exchange.setQueryString(resultAsQueryString);
                         try {
-                            URLUtils.parseQueryString(resultAsQueryString, exchange, encoding, doDecode && !decodingAlreadyDone, maxParameters);
+                            if (thisIsIt) {
+                                URLUtils.parseQueryString(resultHolder == null || resultHolder.value == null ? "" : resultHolder.value, exchange, encoding, doDecode, maxParameters);
+                            } else {
+                                URLUtils.parseQueryString(resultAsQueryString, exchange, encoding,
+                                        doDecode && !decodingAlreadyDone, maxParameters);
+                            }
                         } catch (ParameterLimitException | IllegalArgumentException e) {
                             UndertowLogger.REQUEST_IO_LOGGER.failedToParseRequest(e);
                             state.badRequest = true;
