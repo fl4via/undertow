@@ -356,17 +356,30 @@ public class DefaultServer extends BlockJUnit4ClassRunner {
         final RunDefaultServer defaultServerStatement = new RunDefaultServer(classBlock, notifier);
         Statement statement = defaultServerStatement;
         final List<FrameworkMethod> beforeServerStarts = testClass.getAnnotatedMethods(BeforeServerStarts.class);
+        assertFrameworkMethods(beforeServerStarts, BeforeServerStarts.class);
         if (!beforeServerStarts.isEmpty()) {
             // stopServer that might be already up of we're running the full test suite instead of a single test case
             stopServer();
             statement = new RunBefores(statement, beforeServerStarts, null);
         }
         final List<FrameworkMethod> afterServerStops = testClass.getAnnotatedMethods(AfterServerStops.class);
+        assertFrameworkMethods(afterServerStops, AfterServerStops.class);
         if (!afterServerStops.isEmpty()) {
             defaultServerStatement.stopTheServerWhenDone();
             statement = new RunAfters(statement, afterServerStops, null);
         }
         return statement;
+    }
+
+    private static void assertFrameworkMethods(final List<FrameworkMethod> frameworkMethods, final Class<? extends Annotation> frameworkAnnotation) {
+        for (final FrameworkMethod frameworkMethod : frameworkMethods) {
+            if (!frameworkMethod.isStatic() || !frameworkMethod.isPublic() ||
+                    frameworkMethod.getMethod().getParameterTypes().length > 0) {
+                Assert.fail("@" + frameworkAnnotation.getSimpleName() + " " +
+                        frameworkMethod.getMethod().getDeclaringClass().getSimpleName() + "." +
+                        frameworkMethod.getMethod().getName() + " must be public static and expect no arguments");
+            }
+        }
     }
 
     public static AcceptingChannel<? extends StreamConnection> getProxyServer() {
