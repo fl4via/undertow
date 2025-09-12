@@ -1058,11 +1058,12 @@ public abstract class AbstractFramedChannel<C extends AbstractFramedChannel<C, R
                             try {
                                 buffer = localReadData.getBuffer();
                             } catch (IllegalStateException e) {
-                                if (localReadData.isFreed()) {
+                                /*if (localReadData.isFreed()) {
                                     return;
                                 } else {
                                     throw e;
-                                }
+                                }*/
+                                return;
                             }
                             int rem = buffer.remaining();
                             ChannelListener listener = receiveSetter.get();

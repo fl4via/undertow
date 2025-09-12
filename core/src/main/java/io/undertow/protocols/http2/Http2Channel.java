@@ -45,6 +45,8 @@ import org.xnio.ssl.SslConnection;
 
 import javax.net.ssl.SSLSession;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.ClosedChannelException;
@@ -254,6 +256,10 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
 
     public Http2Channel(StreamConnection connectedStreamChannel, String protocol, ByteBufferPool bufferPool, PooledByteBuffer data, boolean clientSide, boolean fromUpgrade, boolean prefaceRequired, ByteBuffer initialOtherSideSettings, OptionMap settings) {
         super(connectedStreamChannel, bufferPool, new Http2FramePriority(clientSide ? (fromUpgrade ? 3 : 1) : 2), data, settings);
+        rstFramesTimeWindow = settings.get(UndertowOptions.RST_FRAMES_TIME_WINDOW, settings.get(UndertowOptions.RST_FRAMES_TIME_WINDOW, UndertowOptions.DEFAULT_RST_FRAMES_TIME_WINDOW));
+        maxRstFramesPerWindow = settings.get(UndertowOptions.MAX_RST_FRAMES_PER_WINDOW, settings.get(UndertowOptions.MAX_RST_FRAMES_PER_WINDOW, UndertowOptions.DEFAULT_MAX_RST_FRAMES_PER_WINDOW));
+        if (isPeerBlocked(connectedStreamChannel.getPeerAddress(), rstFramesTimeWindow, maxRstFramesPerWindow))
+            throw new RuntimeException("BLOCKED");
         streamIdCounter = clientSide ? (fromUpgrade ? 3 : 1) : 2;
 
         pushEnabled = settings.get(UndertowOptions.HTTP2_SETTINGS_ENABLE_PUSH, true);
@@ -273,8 +279,6 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
         } else {
             paddingRandom = null;
         }
-        maxRstFramesPerWindow = settings.get(UndertowOptions.MAX_RST_FRAMES_PER_WINDOW, settings.get(UndertowOptions.MAX_RST_FRAMES_PER_WINDOW, UndertowOptions.DEFAULT_MAX_RST_FRAMES_PER_WINDOW));
-        rstFramesTimeWindow = settings.get(UndertowOptions.RST_FRAMES_TIME_WINDOW, settings.get(UndertowOptions.RST_FRAMES_TIME_WINDOW, UndertowOptions.DEFAULT_RST_FRAMES_TIME_WINDOW));
 
         this.decoder = new HpackDecoder(encoderHeaderTableSize);
         this.encoder = new HpackEncoder(encoderHeaderTableSize);
@@ -1289,6 +1293,25 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
         }
     }
 
+    public static boolean isPeerBlocked(SocketAddress peerSocketAddress, long rstFramesTimeWindow, int maxRstFramesPerWindow) {
+        final String peerAddress = peerSocketAddress instanceof InetSocketAddress ?
+                ((InetSocketAddress) peerSocketAddress).getHostString() :
+                peerSocketAddress.toString();
+        if (lastResetHosts.containsKey(peerAddress)) {
+            Long[] lastResetHost = lastResetHosts.get(peerAddress);
+            if (System.currentTimeMillis() - lastResetHost[0] >= timeWindowFactor * rstFramesTimeWindow) {
+                lastResetHosts.remove(peerAddress);
+                if (timeWindowFactor < 10) {
+                    timeWindowFactor++;
+                }
+                return false;
+            } else {
+                return lastResetHost[1] >= maxRstFramesPerWindow;
+            }
+        }
+        return false;
+    }
+
     private void trackSentRstWindow() {
         long currentTimeMillis = System.currentTimeMillis();
         // reset the window tracking
@@ -1298,14 +1321,35 @@ public class Http2Channel extends AbstractFramedChannel<Http2Channel, AbstractHt
         } else {
             sentRstFramesPerWindow++;
             if (sentRstFramesPerWindow > maxRstFramesPerWindow) {
+                SocketAddress peer = getPeerAddress();
+                String peerAddress = peer instanceof InetSocketAddress? ((InetSocketAddress) peer).getHostString(): peer.toString();
+                if (lastResetHosts.containsKey(peerAddress)) {
+                    Long[] lastResetHost = lastResetHosts.get(peerAddress);
+                    if (currentTimeMillis - lastResetHost[0] >= rstFramesTimeWindow) {
+                        lastResetHost[0] = currentTimeMillis;
+                        lastResetHost[1] = 1L;
+                    } else {
+                        if (++ lastResetHost[1] > maxRstFramesPerWindow) {
+                            sendGoAway(Http2Channel.ERROR_REFUSED_STREAM);
+                            //System.out.println("Sent refused string to " + peerAddress);
+                            IoUtils.safeClose(this);
+                            return;
+                        }
+                    }
+                } else {
+                    lastResetHosts.put(peerAddress, new Long[]{currentTimeMillis, 1L});
+                }
                 sendGoAway(Http2Channel.ERROR_ENHANCE_YOUR_CALM);
                 UndertowLogger.REQUEST_IO_LOGGER.debugf(
                         "Reached maximum number of sent rst frames %s during %s ms, sending GO_AWAY 11",
                         maxRstFramesPerWindow, rstFramesTimeWindow);
+                //System.out.println("Sending go away to " + this.getPeerAddress() + " " + Integer.toHexString(hashCode()));
                 IoUtils.safeClose(this);
             }
         }
     }
+    private static int timeWindowFactor = 1;
+    private static Map<String, Long[]> lastResetHosts = new ConcurrentHashMap<>();
 
     /**
      * Creates a response stream to respond to the initial HTTP upgrade

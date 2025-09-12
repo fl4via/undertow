@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.undertow.protocols.http2.Http2Channel;
 import org.xnio.ChannelListener;
 import org.xnio.IoUtils;
 import org.xnio.OptionMap;
@@ -104,6 +105,10 @@ public final class HttpOpenListener implements ChannelListener<StreamConnection>
     public void handleEvent(final StreamConnection channel, PooledByteBuffer buffer) {
         if (UndertowLogger.REQUEST_LOGGER.isTraceEnabled()) {
             UndertowLogger.REQUEST_LOGGER.tracef("Opened connection with %s", channel.getPeerAddress());
+        }
+        if (Http2Channel.isPeerBlocked(channel.getPeerAddress(), UndertowOptions.DEFAULT_RST_FRAMES_TIME_WINDOW, UndertowOptions.DEFAULT_MAX_RST_FRAMES_PER_WINDOW)) {
+            IoUtils.safeClose(channel);
+            return;
         }
 
         //set read and write timeouts
