@@ -120,6 +120,7 @@ class Http2FramePriority implements FramePriority<Http2Channel, AbstractHttp2Str
                     if (pending.isOpen()) {
                         throw e;
                     } else {
+                        it.remove();
                         continue;
                     }
                 }
